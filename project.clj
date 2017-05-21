@@ -16,7 +16,7 @@
                  [org.omcljs/om "1.0.0-alpha46"]]
 
   :plugins [[lein-figwheel "0.5.10"]
-            [lein-cljsbuild "1.1.5" :exclusions [[org.clojure/clojure]]]]
+            [lein-cljsbuild "1.1.6" :exclusions [[org.clojure/clojure]]]]
 
   :source-paths ["src"]
 

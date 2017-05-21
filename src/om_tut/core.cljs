@@ -10,15 +10,19 @@
 
 (defonce app-state (atom {:text "Hello, Om World!"}))
 
+;; From the tutorial, "Multiple roots are fully supported and synchronized to render on the same
+;; `requestAnimationFrame`.
 (om/root
   (fn [data owner]
-    (reify om/IRender
-      (render [_]
-        (dom/div nil
-                 (dom/p nil (:text data))
-                 (dom/h3 nil "Edit this and watch it change!")))))
+    (om/component (dom/h2 nil (:text data))))
   app-state
-  {:target (. js/document (getElementById "app"))})
+  {:target (. js/document (getElementById "app0"))})
+
+(om/root
+  (fn [data owner]
+    (om/component (dom/h2 nil (:text data))))
+  app-state
+  {:target (. js/document (getElementById "app1"))})
 
 (defn on-js-reload []
   ;; optionally touch your app-state to force rerendering depending on
