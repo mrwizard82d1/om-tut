@@ -15,7 +15,7 @@
     (reify om/IRender
       (render [_]
         (dom/div nil
-                 (dom/h1 nil (:text data))
+                 (dom/p nil (:text data))
                  (dom/h3 nil "Edit this and watch it change!")))))
   app-state
   {:target (. js/document (getElementById "app"))})
