@@ -10,25 +10,19 @@
 
 (defonce app-state (atom {:list ["Lion" "Zebra" "Buffalo" "Antelope"]}))
 
+;; Render each list item with the specified background color
+(defn stripe [text background-color]
+  (let [item-style #js {:backgroundColor background-color}]
+    (dom/li #js {:style item-style} text)))
+
 (om/root
   (fn [data owner]
-    ;; Render the `:list` element of `app-state` as an undordered list with each item corresponding
-    ;; to an animal above.
-    ;;
-    ;; The second argument to `dom/...` is a map containing tag attributes. Because the React library
-    ;; uses "className" (instead of `class`), we use the same keyword.
-    ;;
-    ;; Remember, the attribute "map" must *actually be* a JavaScript object - so it must be prefaced
-    ;; with the reader literal `#js`. When the reader encounters this literal, it automagically 
-    ;; compiles the following map into a JavaScript object. (Additionally, if `#js` preceeds a vector, 
-    ;; it compiles the following vector into a JavaScript array.)
-    ;;
-    ;; As I discovered through "hard-won experience," neglect this literal, and the generated tag
-    ;; will contain *no* attributes.
-    ;;
-    ;; You have been warned!
+    ;; This component now uses the full power of the ClojureScript language to construct a
+    ;; "complicated" UI without the use of templates.
     (om/component (apply dom/ul #js {:className "animals"}
-                         (map (fn [text] (dom/li nil text)) (:list data)))))
+                         ;; Alternate the stripes between the two colors, yellow (`#ff0`) and 
+                         ;; white (`#fff`)
+                         (map stripe (:list data) (cycle ["#ff0" "#fff"])))))
   app-state
   {:target (. js/document (getElementById "app0"))})
 
