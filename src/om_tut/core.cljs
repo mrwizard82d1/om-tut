@@ -12,9 +12,22 @@
 
 (om/root
   (fn [data owner]
-    ;; Render the `:list` element of `app-state` as an undorderd list with each item corresponding
+    ;; Render the `:list` element of `app-state` as an undordered list with each item corresponding
     ;; to an animal above.
-    (om/component (apply dom/ul nil
+    ;;
+    ;; The second argument to `dom/...` is a map containing tag attributes. Because the React library
+    ;; uses "className" (instead of `class`), we use the same keyword.
+    ;;
+    ;; Remember, the attribute "map" must *actually be* a JavaScript object - so it must be prefaced
+    ;; with the reader literal `#js`. When the reader encounters this literal, it automagically 
+    ;; compiles the following map into a JavaScript object. (Additionally, if `#js` preceeds a vector, 
+    ;; it compiles the following vector into a JavaScript array.)
+    ;;
+    ;; As I discovered through "hard-won experience," neglect this literal, and the generated tag
+    ;; will contain *no* attributes.
+    ;;
+    ;; You have been warned!
+    (om/component (apply dom/ul #js {:className "animals"}
                          (map (fn [text] (dom/li nil text)) (:list data)))))
   app-state
   {:target (. js/document (getElementById "app0"))})
