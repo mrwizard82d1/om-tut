@@ -50,9 +50,6 @@
 (defn display-name [{:keys [first last] :as contact}]
   (str last ", " first (middle-name contact)))
 
-(defn clear-text [domNode]
-  (set! (.-value domNode) ""))
-
 (defn add-contact [data owner]
   ;; The new contact is the value of parsing the value of the "new-contact" component
   (let [new-contact (-> (om/get-node owner "new-contact")
@@ -61,8 +58,7 @@
     ;; If I have a new contact
     (when new-contact
       ;; Add it to the application state by conjoining the new contact to the list of contacts
-      (om/transact! data :contacts #(conj % new-contact))
-      (clear-text (om/get-node owner "new-contact")))))
+      (om/transact! data :contacts #(conj % new-contact)))))
 
 (defn contact-view [contact owner]
   ;; We change the interface we render from `om/IRender` to `om/IRenderState`. The `IRender` is incapable
@@ -92,17 +88,10 @@
   (reify
     om/IInitState
     (init-state [_]
-      ;; The initial state of the component is a map containing a `core.async/chan(nel)` as the value
-      ;; of the `:delete` key. 
-      ;;
-      ;; The tutorial explanation emphasizes that we *must not* allocate the channel used for
-      ;; used for communication in a `let` binding *outside* reify. It explains that the function
-      ;; `contacts-view` (and *any* component) may be invoked many, many times. If we allocated the
-      ;; channel in a `let` binding, the component would *not* be idempotent. (It would depend on 
-      ;; data allocated *outside* the function. I have a vague grasp of this issue; however, I
-      ;; will probably need to encounter the problems it causes "in the wild" to fully appreciate
-      ;; it. Sigh...
-      {:delete (chan)})
+      ;; The initial state of the component is a map containing two pieces: a channel to communicate
+      ;; delete messages and the (unparsed) text of the new contact to add
+      {:delete (chan)
+       :text ""})
     om/IWillMount
     (will-mount [_]
       (let [delete (om/get-state owner :delete)]
@@ -123,22 +112,21 @@
                           (vec (remove #(= contact %) xs))))
           (recur (<! delete)))))
     om/IRenderState
-    (render-state [this {:keys [delete]}]
+    (render-state [this state]
       (dom/div nil
                (dom/h2 nil "Contact list")
                (apply dom/ul 
                       nil
-                      ;; `om/build-all` takes an optional third argument, a map of additional (but 
-                      ;; limited) options. The `:init-state` option expects a map describing the 
-                      ;; initial state to set on the component. (The documantion of `:init-state`
-                      ;; indicates that the state returned from the `om/IInitState` protocol 
-                      ;; implementation is merged *into* this component state. I do not 
-                      ;; understand this description / operation. It seems to be a "no-op." Hmmm.
+                      ;; The initial state used to build the `contact-view` is the state passed into
+                      ;; this component.
                       (om/build-all contact-view 
                                     (:contacts data)
-                                    {:init-state {:delete delete}}))
+                                    {:init-state state}))
                (dom/div nil
-                        (dom/input #js {:type "text" :ref "new-contact"})
+                        ;; Additionally, the `:text` element of `state` contains the (unparsed) value 
+                        ;; of the new contact to be added. (Note that we *always* overwrite whatever
+                        ;; the user types with this value. :) )
+                        (dom/input #js {:type "text" :ref "new-contact" :value (:text state)})
                         (dom/button #js {:onClick #(add-contact data owner)} "Add contact"))))))
 
 (om/root contacts-view
