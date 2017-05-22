@@ -1,8 +1,10 @@
+;; Remember that one *must* re-run `lein figwheel` when changing the top namespace form.
 (ns om-tut.core
   (:require-macros [cljs.core.async.macros :refer [go-loop]])
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
-            [cljs.core.async :refer [put! chan <!]]))
+            [cljs.core.async :refer [put! chan <!]]
+            [clojure.string :as string]))
 
 (enable-console-print!)
 
@@ -18,6 +20,28 @@
                     {:first "Cy" :middle-initial "D" :last "Effect" :email "bugs@mit.edu"}
                     {:first "Lem" :middle-initial "E" :last "Tweakit" :email "morebugs@mit.edu"}]}))
 
+(defn parse-contact [contact-str]
+  (let [[;; Split the contact into three pieces: first, middle and last
+         first middle last :as parts] (string/split contact-str #"\s+")
+        ;; If contact only split into *two* components (no `last`), exchange `last` and `middle`
+        [first last middle] (if (nil? last)
+                              [first middle]
+                              [first last middle])
+        ;; Remove the "." from the middle initial
+        middle (when middle (string/replace middle "." ""))
+        ;; Remember the size of the middle (distinguishes between "middle name" and "middle initial")
+        c (if middle 
+            (count middle) 
+            0)]
+    ;; If the contact has at least two parts (otherwise, return `nil`)
+    (when (>= (count parts) 2)
+      ;; I must have a first and last name
+      (cond-> {:first first :last last}
+        ;; If `middle` has only a single character, add a `:middle-initial` item to the returned value
+        (== c 1) (assoc :middle-initial middle)
+        ;; If `middle` has 2 or more characters, add a `middle` item to the returned value
+        (>= c 2) (assoc :middle middle)))))
+
 (defn middle-name [{:keys [middle middle-initial]}]
   (cond 
     middle (str " " middle)
@@ -25,6 +49,16 @@
 
 (defn display-name [{:keys [first last] :as contact}]
   (str last ", " first (middle-name contact)))
+
+(defn add-contact [data owner]
+  ;; The new contact is the value of parsing the value of the "new-contact" component
+  (let [new-contact (-> (om/get-node owner "new-contact")
+                        .-value
+                        parse-contact)]
+    ;; If I have a new contact
+    (when new-contact
+      ;; Add it to the application state by conjoining the new contact to the list of contacts
+      (om/transact! data :contacts #(conj % new-contact)))))
 
 (defn contact-view [contact owner]
   ;; We change the interface we render from `om/IRender` to `om/IRenderState`. The `IRender` is incapable
@@ -98,7 +132,10 @@
                       ;; understand this description / operation. It seems to be a "no-op." Hmmm.
                       (om/build-all contact-view 
                                     (:contacts data)
-                                    {:init-state {:delete delete}}))))))
+                                    {:init-state {:delete delete}}))
+               (dom/div nil
+                        (dom/input #js {:type "text" :ref "new-contact"})
+                        (dom/button #js {:onClick #(add-contact data owner)} "Add contact"))))))
 
 (om/root contacts-view
          app-state
