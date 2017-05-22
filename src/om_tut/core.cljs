@@ -50,6 +50,9 @@
 (defn display-name [{:keys [first last] :as contact}]
   (str last ", " first (middle-name contact)))
 
+(defn clear-text [domNode]
+  (set! (.-value domNode) ""))
+
 (defn add-contact [data owner]
   ;; The new contact is the value of parsing the value of the "new-contact" component
   (let [new-contact (-> (om/get-node owner "new-contact")
@@ -58,7 +61,8 @@
     ;; If I have a new contact
     (when new-contact
       ;; Add it to the application state by conjoining the new contact to the list of contacts
-      (om/transact! data :contacts #(conj % new-contact)))))
+      (om/transact! data :contacts #(conj % new-contact))
+      (clear-text (om/get-node owner "new-contact")))))
 
 (defn contact-view [contact owner]
   ;; We change the interface we render from `om/IRender` to `om/IRenderState`. The `IRender` is incapable
