@@ -1,5 +1,5 @@
 (ns om-tut.core
-  (:require-macros [cljs.core.async.macros :refer [go]])
+  (:require-macros [cljs.core.async.macros :refer [go-loop]])
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
             [cljs.core.async :refer [put! chan <!]]))
@@ -71,21 +71,19 @@
         ;; When I'm about to mount this component, I create an infinite loop that attempts to take the 
         ;; contact to delete from the `delete` channel (parking / blocking if none exist) and then 
         ;; deleting that contact from the application state (`data`).
-        (go
-          (loop []
-            (let [contact (<! delete)]
-              ;; The function `om/transact!` is the primary function for changing application state.
-              ;; This function takes a cursor identifying the state affected by the change, an optional
-              ;; "korks" (key or sequence of keys) further identifying the portion of application state 
-              ;; affected, and a function updating that (small) portion of the state.
-              (om/transact! data 
-                            :contacts
-                            ;; We *must* use `vec` to convert the lazy sequence returned by `remove`
-                            ;; to a fully realized sequence. (We can only store realized sequences
-                            ;; in our application state.
-                            (fn [xs]
-                              (vec (remove #(= contact %) xs))))
-              (recur))))))
+        (go-loop [contact (<! delete)]
+          ;; The function `om/transact!` is the primary function for changing application state.
+          ;; This function takes a cursor identifying the state affected by the change, an optional
+          ;; "korks" (key or sequence of keys) further identifying the portion of application state 
+          ;; affected, and a function updating that (small) portion of the state.
+          (om/transact! data
+                        :contacts
+                        ;; We *must* use `vec` to convert the lazy sequence returned by `remove`
+                        ;; to a fully realized sequence. (We can only store realized sequences
+                        ;; in our application state.
+                        (fn [xs]
+                          (vec (remove #(= contact %) xs))))
+          (recur (<! delete)))))
     om/IRenderState
     (render-state [this {:keys [delete]}]
       (dom/div nil
