@@ -6,6 +6,8 @@
 
   :min-lein-version "2.7.1"
 
+  ;; Remember: if one changes the dependencies, for example, bu adding `org.clojure/core.async`, one must
+  ;; completely restart figwheel.
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/clojurescript "1.9.229"]
                  [org.clojure/core.async  "0.3.442"
