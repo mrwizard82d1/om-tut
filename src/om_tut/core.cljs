@@ -61,30 +61,20 @@
       (om/transact! data :contacts #(conj % new-contact)))))
 
 (defn contact-view [contact owner]
-  ;; We change the interface we render from `om/IRender` to `om/IRenderState`. The `IRender` is incapable
-  ;; of receiving component state; `IRenderState`, however, can receive component state from the React
-  ;; framework.
   (reify 
     om/IRenderState
-    ;; `render-state` receives the component state as its second argument. We extract the `delete` value
-    ;; (which is a `core.async` channel).
     (render-state [this {:keys [delete]}]
       (dom/li nil
               (dom/span nil (display-name contact))
-              ;; The `onClick` event puts the contact to delete on the channel. (I'm uncertain the
-              ;; reason that we dereference `contact` in the call to `put!`.)
               (dom/button #js {:onClick (fn [e] (put! delete @contact))} 
                           "Delete")))))
 
+;; I do not understand why we extract the `:text` component of the state.
+(defn handle-change [e owner {:keys [text]}]
+  ;; Remember, the `..` function translates to the JavaScript expression `e.target.value`
+  (om/set-state! owner :text (.. e -target -value)))
+
 (defn contacts-view [data owner]
-  ;; I think of `data` as application state (per React); however, based on the documentation of
-  ;; `om/transact!`, I believe data, in the Om world, is actually a cursor into the application 
-  ;; state. I need to understand cursors more. From the documentation, Om application keep their 
-  ;; application state in a single atom (think "Redux store"). However, just like with Redux 
-  ;; stores, individual components only care about a *portion* of the application state. An Om 
-  ;; `Cursor` models a portion of the application state. The implementation details of a `Cursor`
-  ;; involve packaging the reference to the application state with a path to the component(s) of
-  ;; interest (a vector of keys into the application state).
   (reify
     om/IInitState
     (init-state [_]
@@ -95,19 +85,9 @@
     om/IWillMount
     (will-mount [_]
       (let [delete (om/get-state owner :delete)]
-        ;; When I'm about to mount this component, I create an infinite loop that attempts to take the 
-        ;; contact to delete from the `delete` channel (parking / blocking if none exist) and then 
-        ;; deleting that contact from the application state (`data`).
         (go-loop [contact (<! delete)]
-          ;; The function `om/transact!` is the primary function for changing application state.
-          ;; This function takes a cursor identifying the state affected by the change, an optional
-          ;; "korks" (key or sequence of keys) further identifying the portion of application state 
-          ;; affected, and a function updating that (small) portion of the state.
           (om/transact! data
                         :contacts
-                        ;; We *must* use `vec` to convert the lazy sequence returned by `remove`
-                        ;; to a fully realized sequence. (We can only store realized sequences
-                        ;; in our application state.
                         (fn [xs]
                           (vec (remove #(= contact %) xs))))
           (recur (<! delete)))))
@@ -117,8 +97,6 @@
                (dom/h2 nil "Contact list")
                (apply dom/ul 
                       nil
-                      ;; The initial state used to build the `contact-view` is the state passed into
-                      ;; this component.
                       (om/build-all contact-view 
                                     (:contacts data)
                                     {:init-state state}))
@@ -126,8 +104,13 @@
                         ;; Additionally, the `:text` element of `state` contains the (unparsed) value 
                         ;; of the new contact to be added. (Note that we *always* overwrite whatever
                         ;; the user types with this value. :) )
-                        (dom/input #js {:type "text" :ref "new-contact" :value (:text state)})
-                        (dom/button #js {:onClick #(add-contact data owner)} "Add contact"))))))
+                        (dom/input #js {:type "text"
+                                        :ref "new-contact"
+                                        :value (:text state)
+                                        ;; Responds to `onChange` event by handling the change event.
+                                        :onChange #(handle-change % owner state)})
+                        (dom/button #js {:onClick #(add-contact data owner)} 
+                                    "Add contact"))))))
 
 (om/root contacts-view
          app-state
