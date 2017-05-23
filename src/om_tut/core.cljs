@@ -58,7 +58,9 @@
     ;; If I have a new contact
     (when new-contact
       ;; Add it to the application state by conjoining the new contact to the list of contacts
-      (om/transact! data :contacts #(conj % new-contact)))))
+      (om/transact! data :contacts #(conj % new-contact))
+      ;; And clear the input field when successfully added
+      (om/set-state! owner :text ""))))
 
 (defn contact-view [contact owner]
   (reify 
