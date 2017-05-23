@@ -71,10 +71,21 @@
               (dom/button #js {:onClick (fn [e] (put! delete @contact))} 
                           "Delete")))))
 
+(defn contains-digit?
+  "Returns a 'truthy' value if `to-test` contains a digit."
+  [to-test]
+  (re-find #"[0-9]" to-test))
+
 ;; I do not understand why we extract the `:text` component of the state.
 (defn handle-change [e owner {:keys [text]}]
   ;; Remember, the `..` function translates to the JavaScript expression `e.target.value`
-  (om/set-state! owner :text (.. e -target -value)))
+  (let [new-value (.. e -target -value)]
+    (if-not (contains-digit? new-value)
+      (om/set-state! owner :text new-value)
+      ;; The following expression is *not* needed in React; however, as the tutorial explains,
+      ;; "...React's internals [clash] a bit with Om's optimization of always rendering on
+      ;; `requestAnimationFrame`.
+      (om/set-state! owner :text text))))
 
 (defn contacts-view [data owner]
   (reify
