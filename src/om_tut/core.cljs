@@ -69,7 +69,20 @@
     (render [_]
       (dom/div #js {:id "registry"}
                (dom/h2 nil "Registry")
-               (dom/div nil (om/build-all entry-view (people data)))))))
+               (dom/div nil (om/build-all entry-view
+                                          (people data)
+                                          ;; Although one typically uses `om/build-all` with arity 2, the 
+                                          ;; arity 3 version allows one to specify additional options.
+                                          ;; One option is `:key`. This option allows one to specify a React
+                                          ;; key value for each item (avoiding the annoying "Each child 
+                                          ;; in an array or iterator should have a unique key" warning).
+                                          ;; A less used option, `:key-fn`, allows one to supply a function 
+                                          ;; that *calculates* a key value for each item.
+                                          ;;
+                                          ;; I've chosen a "stupid" key function: calculate the display name.
+                                          ;; This value is unique in this tutorial but would be utterly 
+                                          ;; insufficient in a real application.
+                                          {:key-fn display-name}))))))
 
 (defn classes-view [data owner]
   (reify
