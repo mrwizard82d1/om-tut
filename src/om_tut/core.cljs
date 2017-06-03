@@ -20,6 +20,84 @@
                    :6946 "The Structure and Interpretation of Classical Mechanics"
                    :1806 "Linear Algebra"}}))
 
+;; The next three functions, `display`, `handle-change` and `commit-change` are helpers for our
+;; `editable` component.
+
+(defn display
+  "Helper function for hiding / showing elements."
+  [show]
+  (if show
+    #js {} ; Show the component
+    #js {:display "none"})) ; Hide the component
+
+(defn handle-change
+  "Update the application state when text changes.
+
+  e - The event raised by the change.
+  text - The key or keys identifying the part of the application state to change.
+  owner - The DOM element related to this Om component."
+  [e text owner]
+  (om/transact! text (fn [_] (.. e -target -value))))
+
+(defn commit-change
+  "Helper function to exit editing 'mode' when component loses control.
+
+  text - The key or keys identifying the part of the application state to change.
+  owner - The DOM element corresponding to this OM component."
+  [text owner]
+  (om/set-state! owner :editing false))
+
+;; The `editable` component takes a JavaScript string and presents it in the browser while also making
+;; it editable. However, for this implementation to work, JavaScript strings need to support the Om
+;; cursor interface. The next two `extend-type` forms provide that support.
+
+(extend-type string
+  ICloneable
+  ;; Clones `s` as a new JavaScript string.
+  (-clone [s] (js/String. s)))
+
+;; However, extending `js/String` is insufficient because JavaScript `String`s and JavaScript primitive
+;; strings are *not* the same thing.
+
+(extend-type js/String
+  ICloneable
+  ;; Clone `s`, a `js/String`.
+  (-clone [s] (js/String. s))
+  om/IValue
+  ;; Return the value of the (JavaScript) string, `s`, as a ClojureScript string.
+  (-value [s] (str s)))
+
+;; The previous changes will produce a ClojureScript warning. Figwheel, because of this warning,
+;; *will not* reload the code. In general, this behavior is a _good thing_. To address this, while
+;; keeping the editable component as simple as possible, we will change `project.clj` to load code
+;; with warnings. Remember, this technique is *not* receommended for production code.
+
+(defn editable 
+  "Create an component for editing `text`."
+  [text owner]
+  (reify
+    om/IInitState
+    (init-state [_]
+      ;; Initially, we are not editing the text.
+      {:editing false})
+    om/IRenderState
+    (render-state [_ {:keys [editing]}]
+      (dom/li nil
+              (dom/span #js {:style (display (not editing))}
+                        (om/value text))
+              (dom/input #js {:style (display editing)
+                              :value
+                              ;; We use `om/value` because React does not handle JavaScript 
+                              ;; strings directly.
+                              (om/value text)
+                              :onChange #(handle-change % text owner)
+                              :onKeyDown #(when (= (.-key %) "Enter")
+                                            (commit-change text owner))
+                              :onBlur (fn [e] (commit-change text owner))})
+              (dom/button #js {:style (display (not editing))
+                               :onClick #(om/set-state! owner :editing true)}
+                          "Edit")))))
+
 (defn middle-name [{:keys [middle middle-initial]}]
   (cond 
     middle (str " " middle)
@@ -42,7 +120,10 @@
               (dom/div #js {:key (:first professor)} (display-name professor))
               (dom/label nil "Classes")
               (apply dom/ul nil
-                     (map #(dom/li nil %) (:classes professor)))))))
+                     (map #(dom/li nil
+                                   ;; Use `om/value` to convert the argument to a value.
+                                   (om/value %))
+                          (:classes professor)))))))
 
 (defmulti entry-view (fn [person _] (:type person)))
 
@@ -91,7 +172,7 @@
       (dom/div #js {:id "classes"}
                (dom/h2 nil "Classes")
                (apply dom/ul nil
-                      (map #(dom/li nil %) (vals (:classes data))))))))
+                      (om/build-all editable (vals (:classes data))))))))
 
 (om/root registry-view
          app-state
