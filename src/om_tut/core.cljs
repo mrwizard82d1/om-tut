@@ -53,14 +53,6 @@
 
 (extend-type string
   ICloneable
-  ;; Clones `s` as a new JavaScript string.
-  (-clone [s] (js/String. s)))
-
-;; However, extending `js/String` is insufficient because JavaScript `String`s and JavaScript primitive
-;; strings are *not* the same thing.
-
-(extend-type js/String
-  ICloneable
   ;; Clone `s`, a `js/String`.
   (-clone [s] (js/String. s))
   om/IValue
@@ -86,10 +78,9 @@
               (dom/span #js {:style (display (not editing))}
                         (om/value text))
               (dom/input #js {:style (display editing)
-                              :value
                               ;; We use `om/value` because React does not handle JavaScript 
                               ;; strings directly.
-                              (om/value text)
+                              :value (om/value text)
                               :onChange #(handle-change % text owner)
                               :onKeyDown #(when (= (.-key %) "Enter")
                                             (commit-change text owner))
@@ -119,7 +110,8 @@
       (dom/li nil
               (dom/div #js {:key (:first professor)} (display-name professor))
               (dom/label nil "Classes")
-              (apply dom/ul nil
+              (om/build-all editable (:classes professor))
+              #_(apply dom/ul nil
                      (map #(dom/li nil
                                    ;; Use `om/value` to convert the argument to a value.
                                    (om/value %))
